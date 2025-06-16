@@ -1,0 +1,43 @@
+name: Test Docker Build
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches-ignore:
+      - main
+
+jobs:
+  test-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        run: |
+          docker build -t app:test .
+
+      - name: Run Docker container
+        run: |
+          docker run -d --name test-container \
+            -e NODE_ENV=test \
+            -e DATABASE_URL=postgresql://postgres:postgres@db:5432/db?schema=public \
+            -e REDIS_URL=redis://redis:6379 \
+            app:test
+
+      - name: Check container status
+        run: |
+          docker ps
+          docker logs test-container
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker stop test-container || true
+          docker rm test-container || true
+          docker rmi app:test || true
